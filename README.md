@@ -264,8 +264,6 @@ The project includes a web application for visualizing the saga pattern:
 3. Observe the saga flow in real-time
 4. Experiment with different failure scenarios
 
-For detailed information about the visualization app, see [WEBAPP-README.md](WEBAPP-README.md).
-
 ## Educational Resources
 
 This project is designed for educational purposes to demonstrate:
