@@ -1,0 +1,21 @@
+{
+  "name": "saga-webapp",
+  "version": "1.0.0",
+  "description": "Web application to visualize Saga Pattern",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "socket.io": "^4.7.2",
+    "axios": "^1.5.0",
+    "kafkajs": "^2.2.4",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saga Pattern Microservices Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <!-- Main navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="bi bi-diagram-3"></i> Saga Pattern Demo
+      </a>
+      <div class="nav-services d-none d-md-flex align-items-center">
+        <div class="service-indicator" id="service-order">
+          <i class="bi bi-box"></i> Order
+        </div>
+        <div class="service-indicator" id="service-inventory">
+          <i class="bi bi-archive"></i> Inventory
+        </div>
+        <div class="service-indicator" id="service-payment">
+          <i class="bi bi-credit-card"></i> Payment
+        </div>
+        <div class="service-indicator" id="service-shipping">
+          <i class="bi bi-truck"></i> Shipping
+        </div>
+      </div>
+      <button id="refresh-status" class="btn btn-sm btn-outline-light">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+  </nav>
+  
+  <!-- Hidden services status for backward compatibility with JS -->
+  <div style="display: none;">
+    <ul id="services-status" class="list-group">
+      <li class="list-group-item d-flex justify-content-between align-items-center service-item">
+        <span><i class="bi bi-box me-2 text-primary"></i>Order Service</span>
+        <span class="status-badge loading">
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          Loading...
+        </span>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center service-item">
+        <span><i class="bi bi-archive me-2 text-success"></i>Inventory Service</span>
+        <span class="status-badge loading">
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          Loading...
+        </span>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center service-item">
+        <span><i class="bi bi-credit-card me-2 text-warning"></i>Payment Service</span>
+        <span class="status-badge loading">
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          Loading...
+        </span>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center service-item">
+        <span><i class="bi bi-truck me-2 text-purple"></i>Shipping Service</span>
+        <span class="status-badge loading">
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          Loading...
+        </span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Interactive Tutorial Modal -->
+  <div class="modal fade" id="tutorialModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Understanding the Saga Pattern</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="tutorialCarousel" class="carousel slide" data-bs-ride="false">
+            <div class="carousel-indicators">
+              <button type="button" data-bs-target="#tutorialCarousel" data-bs-slide-to="0" class="active"></button>
+              <button type="button" data-bs-target="#tutorialCarousel" data-bs-slide-to="1"></button>
+              <button type="button" data-bs-target="#tutorialCarousel" data-bs-slide-to="2"></button>
+              <button type="button" data-bs-target="#tutorialCarousel" data-bs-slide-to="3"></button>
+            </div>
+            <div class="carousel-inner">
+              <div class="carousel-item active">
+                <div class="tutorial-content">
+                  <h3>What is the Saga Pattern?</h3>
+                  <p>The Saga Pattern is a distributed transaction management pattern used in microservices architectures to maintain data consistency across services without using traditional two-phase commit protocols.</p>
+                  <div class="tutorial-image">
+                    <img src="https://miro.medium.com/v2/resize:fit:1400/1*CjrxAP5CHO_mL6H6FP8tFQ.png" alt="Saga Pattern Overview">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="tutorial-content">
+                  <h3>How the Saga Works</h3>
+                  <p>A saga is a sequence of local transactions. Each service performs its transaction and publishes an event that triggers the next service. If a step fails, compensating transactions are executed to undo changes.</p>
+                  <div class="tutorial-image">
+                    <img src="https://cdn.ttgtmedia.com/rms/onlineimages/microservices-saga_pattern_in_microservices-f.png" alt="Saga Sequence">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="tutorial-content">
+                  <h3>Compensation Transactions</h3>
+                  <p>If any step in the saga fails, we need to undo previous successful steps. These "undoing" actions are called compensation transactions.</p>
+                  <p>For example, if payment fails, we need to release the previously reserved inventory.</p>
+                  <div class="tutorial-image">
+                    <img src="https://miro.medium.com/v2/resize:fit:1054/1*mGS5xFk033fX8y_C1-WCPg.png" alt="Compensation Transactions">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="tutorial-content">
+                  <h3>This Demo Application</h3>
+                  <p>This demo shows a simplified e-commerce flow with four microservices:</p>
+                  <ul>
+                    <li><strong>Order Service:</strong> Orchestrates the saga and manages orders</li>
+                    <li><strong>Inventory Service:</strong> Manages product stock</li>
+                    <li><strong>Payment Service:</strong> Processes payments</li>
+                    <li><strong>Shipping Service:</strong> Arranges shipping</li>
+                  </ul>
+                  <p>Try creating orders and intentionally failing different steps to see how compensation works!</p>
+                </div>
+              </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#tutorialCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon"></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#tutorialCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon"></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-12 mb-4">
+        <div class="intro-card">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <h1>Saga Pattern Demonstration</h1>
+              <p class="lead">An interactive demo showing distributed transactions in microservices using the saga pattern with choreography and compensation.</p>
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tutorialModal">
+                <i class="bi bi-info-circle me-2"></i>Learn About Saga Pattern
+              </button>
+            </div>
+            <div class="col-md-4 d-none d-md-block">
+              <div class="pattern-diagram"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4">
+        <!-- Create Order Panel -->
+        <div class="card panel-card mb-4">
+          <div class="card-header">
+            <h5><i class="bi bi-cart-plus me-2"></i>Create Order</h5>
+            <div class="form-check form-switch ms-auto">
+              <input class="form-check-input" type="checkbox" id="test-mode-switch">
+              <label class="form-check-label" for="test-mode-switch">Test Mode</label>
+            </div>
+          </div>
+          <div class="card-body">
+            <!-- Normal Order Form -->
+            <form id="create-order-form" class="order-form">
+              <div class="mb-3">
+                <label for="customerId" class="form-label">Customer ID</label>
+                <input type="text" class="form-control" id="customerId" value="cust123" required>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label d-flex justify-content-between">
+                  <span>Products</span>
+                  <button type="button" id="add-item" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-plus-circle me-1"></i>Add
+                  </button>
+                </label>
+                <div id="order-items" class="product-items">
+                  <div class="product-item">
+                    <select name="productId" class="form-select">
+                      <option value="PROD-1">Laptop ($1200)</option>
+                      <option value="PROD-2">Phone ($800)</option>
+                      <option value="PROD-3">Tablet ($500)</option>
+                    </select>
+                    <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                      <i class="bi bi-dash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-send me-1"></i>Create Order
+              </button>
+            </form>
+            
+            <!-- Test Order Form (hidden by default) -->
+            <div id="saga-test-form" class="order-form" style="display: none;">
+              <div class="mb-3">
+                <label class="form-label">Test Scenarios</label>
+                <p class="small text-muted">Click any button below to create a test order with different failure scenarios:</p>
+              </div>
+              
+              <div class="d-grid gap-2">
+                <a href="#" class="btn btn-primary" id="test-success-btn">
+                  <i class="bi bi-check-circle me-1"></i>Test Successful Order
+                </a>
+                <a href="#" class="btn btn-warning" id="test-inventory-btn">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Test Inventory Failure
+                </a>
+                <a href="#" class="btn btn-warning" id="test-payment-btn">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Test Payment Failure
+                </a>
+                <a href="#" class="btn btn-warning" id="test-shipping-btn">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Test Shipping Failure
+                </a>
+              </div>
+              
+              <hr>
+              
+              <div class="mb-3">
+                <label class="form-label">Alternative Direct Links</label>
+                <p class="small text-muted">If buttons above don't work, use these direct links:</p>
+              </div>
+              
+              <div class="list-group">
+                <a href="/create-test-order" class="list-group-item list-group-item-action" target="_blank">
+                  <i class="bi bi-check-circle me-1"></i>Success (All Pass)
+                </a>
+                <a href="/create-test-order?inventory=fail" class="list-group-item list-group-item-action" target="_blank">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Inventory Failure
+                </a>
+                <a href="/create-test-order?payment=fail" class="list-group-item list-group-item-action" target="_blank">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Payment Failure
+                </a>
+                <a href="/create-test-order?shipping=fail" class="list-group-item list-group-item-action" target="_blank">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Shipping Failure
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="test-info">
+              <i class="bi bi-info-circle"></i>
+              <span>Switch to Test Mode to simulate specific failures in the saga flow</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Order Lookup -->
+        <div class="card panel-card mb-4">
+          <div class="card-header">
+            <h5><i class="bi bi-search me-2"></i>Order Lookup</h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="order-id-input" class="form-label">Enter Order ID</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="order-id-input" placeholder="Order ID">
+                <button id="view-order-btn" class="btn btn-outline-primary">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div id="recent-orders" class="recent-orders">
+              <h6 class="text-muted mb-2">Recent Orders</h6>
+              <div class="recent-orders-list">
+                <!-- Recent orders will be added here dynamically -->
+                <div class="empty-state">No orders yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-8">
+        <!-- Saga Flow Card -->
+        <div class="card panel-card mb-4">
+          <div class="card-header">
+            <h5><i class="bi bi-diagram-3 me-2"></i>Saga Flow Visualization</h5>
+            <div class="card-header-actions">
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="viewModeDropdown" data-bs-toggle="dropdown">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="viewModeDropdown">
+                  <li><a class="dropdown-item active" href="#" data-view="graph">Graph View</a></li>
+                  <li><a class="dropdown-item" href="#" data-view="sequence">Sequence View</a></li>
+                </ul>
+              </div>
+              <button id="clear-saga-events" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="saga-flow">
+              <div class="services">
+                <div class="service" id="order-service">
+                  <div class="service-icon"><i class="bi bi-box"></i></div>
+                  <div class="service-name">Order</div>
+                </div>
+                <div class="service" id="inventory-service">
+                  <div class="service-icon"><i class="bi bi-archive"></i></div>
+                  <div class="service-name">Inventory</div>
+                </div>
+                <div class="service" id="payment-service">
+                  <div class="service-icon"><i class="bi bi-credit-card"></i></div>
+                  <div class="service-name">Payment</div>
+                </div>
+                <div class="service" id="shipping-service">
+                  <div class="service-icon"><i class="bi bi-truck"></i></div>
+                  <div class="service-name">Shipping</div>
+                </div>
+              </div>
+              <div id="saga-events-container" class="saga-events-container">
+                <!-- Events will be added here dynamically -->
+                <div class="empty-state">
+                  <i class="bi bi-arrow-left-circle"></i>
+                  <p>Create an order to see the saga flow in action</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer sequence-diagram-legend">
+            <div class="legend-item success">
+              <span class="legend-color"></span>
+              <span>Success Flow</span>
+            </div>
+            <div class="legend-item error">
+              <span class="legend-color"></span>
+              <span>Error</span>
+            </div>
+            <div class="legend-item compensation">
+              <span class="legend-color"></span>
+              <span>Compensation</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Order Details -->
+        <div id="order-details-card" class="card panel-card mb-4" style="display: none;">
+          <div class="card-header">
+            <h5><i class="bi bi-clipboard-data me-2"></i>Order Details</h5>
+            <div class="badge" id="order-status-badge">Pending</div>
+          </div>
+          <div class="card-body">
+            <div id="order-details-content" class="order-details">
+              <!-- Order details will be added here dynamically -->
+            </div>
+          </div>
+        </div>
+        
+        <!-- Event Log -->
+        <div class="card panel-card">
+          <div class="card-header">
+            <h5><i class="bi bi-journal-text me-2"></i>Event Log</h5>
+            <button id="clear-events" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div id="events-log" class="events-log">
+              <!-- Events will be added here dynamically -->
+              <div class="empty-state">No events recorded yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <footer class="footer mt-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6">
+          <p>&copy; 2025 Saga Pattern Demo</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <a href="#" data-bs-toggle="modal" data-bs-target="#tutorialModal">About Saga Pattern</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Error Modal -->
+  <div class="modal fade" id="error-modal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Error</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="error-modal-body">
+          <!-- Error message will be added here dynamically -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Orders Modal -->
+  <div class="modal fade" id="recent-orders-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-list-ul me-2"></i>Recent Orders</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body">
+                <!-- Orders will be added here dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Service Details Modal -->
+  <div class="modal fade" id="service-details-modal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>Service Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="service-details-body">
+          <!-- Service details will be added here dynamically -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/service-hints.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html> 

@@ -1,0 +1,26 @@
+{
+  "name": "saga-pattern-demo",
+  "version": "1.0.0",
+  "description": "Saga Pattern Demonstration using microservices and Kafka",
+  "scripts": {
+    "create-db:order": "cd order-service && npm run create-db",
+    "create-db:inventory": "cd inventory-service && npm run create-db",
+    "create-db:payment": "cd payment-service && npm run create-db",
+    "create-db:shipping": "cd shipping-service && npm run create-db",
+    "create-db:all": "npm run create-db:order && npm run create-db:inventory && npm run create-db:payment && npm run create-db:shipping",
+    "create-topics": "cd order-service && npm run create-topics",
+    "start:order": "cd order-service && npm run dev",
+    "start:inventory": "cd inventory-service && npm run dev",
+    "start:payment": "cd payment-service && npm run dev",
+    "start:shipping": "cd shipping-service && npm run dev",
+    "start:webapp": "cd saga-webapp && npm run dev",
+    "start:all": "concurrently \"npm run start:order\" \"npm run start:inventory\" \"npm run start:payment\" \"npm run start:shipping\" \"npm run start:webapp\"",
+    "install:all": "npm install && cd order-service && npm install && cd ../inventory-service && npm install && cd ../payment-service && npm install && cd ../shipping-service && npm install && cd ../saga-webapp && npm install",
+    "setup": "npm run install:all && npm run create-db:all && npm run create-topics"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.0.1"
+  }
+} 

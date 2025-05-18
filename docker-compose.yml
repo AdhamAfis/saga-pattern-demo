@@ -1,0 +1,120 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+      SERVICE_PORT: 3001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  inventory-service:
+    build: ./inventory-service
+    ports:
+      - "3002:3002"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+      SERVICE_PORT: 3002
+    volumes:
+      - ./saga-webapp/health-endpoints/inventory-health.js:/app/src/health-endpoint.js
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+      SERVICE_PORT: 3003
+    volumes:
+      - ./saga-webapp/health-endpoints/payment-health.js:/app/src/health-endpoint.js
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  shipping-service:
+    build: ./shipping-service
+    ports:
+      - "3004:3004"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+      SERVICE_PORT: 3004
+    volumes:
+      - ./saga-webapp/health-endpoints/shipping-health.js:/app/src/health-endpoint.js
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  saga-webapp:
+    build: ./saga-webapp
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kafka
+      - order-service
+      - inventory-service
+      - payment-service
+      - shipping-service
+    environment:
+      KAFKA_BROKER: kafka:9092
+      PORT: 3000
+      DOCKER_ENV: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3 
